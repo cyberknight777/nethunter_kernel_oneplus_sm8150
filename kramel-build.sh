@@ -47,7 +47,7 @@ KERNEL_DIR="$(pwd)"
 BASEDIR="$(basename "$KERNEL_DIR")"
 
 # The name of the Kernel, to name the ZIP
-ZIPNAME="DragonHeart"
+ZIPNAME="NetHunter"
 
 # Version number of kernel
 VERSION=$version
@@ -67,7 +67,7 @@ DEVICE="op7"
 
 # The defconfig which should be used. Get it from config.gz from
 # your device or check source
-DEFCONFIG=dragonheart_defconfig
+DEFCONFIG=kali_defconfig
 
 # Build modules. 0 = NO | 1 = YES
 MODULES=1
@@ -184,7 +184,7 @@ DATE=$(TZ=GMT-8 date +"%Y%m%d-%H%M")
 	fi
 
 	msg "|| Cloning Anykernel ||"
-	git clone --depth 1 --no-single-branch https://github.com/"$AUTHOR"/AnyKernel3.git -b op7
+	git clone --depth 1 --no-single-branch https://github.com/"$AUTHOR"/AnyKernel3.git -b op7-nh
 	msg "|| Cloning libufdt ||"
 	git clone https://android.googlesource.com/platform/system/libufdt "$KERNEL_DIR"/scripts/ufdt/libufdt
 
