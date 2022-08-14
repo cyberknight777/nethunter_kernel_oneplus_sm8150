@@ -36,7 +36,7 @@ export CODENAME="op7"
 export BUILDER="cyberknight777"
 
 # Kernel repository URL.
-export REPO_URL="https://github.com/cyberknight777/dragonheart_kernel_oneplus_sm8150"
+export REPO_URL="https://github.com/cyberknight777/nethunter_kernel_oneplus_sm8150"
 
 # Commit hash of HEAD.
 COMMIT_HASH=$(git rev-parse --short HEAD)
@@ -47,7 +47,7 @@ export RELEASE=$rel
 if [ "${RELEASE}" = 1 ]; then
     export STATUS="Release"
     export CHATID=-1001361882613
-    export re="rc"
+    export re="v"
 else
     export STATUS="Bleeding-Edge"
     export CHATID=-1001564538644
@@ -67,6 +67,9 @@ export PROCS
 
 # Compiler to use for builds.
 export COMPILER=gcc
+
+# Module building support. Set 1 to enable. | Set 0 to disable.
+export MODULE=1
 
 # Requirements
 if [ "${ci}" != 1 ]; then
@@ -133,9 +136,16 @@ elif [[ "${COMPILER}" = clang ]]; then
     )
 fi
 
-if [ ! -d "${KDIR}/anykernel3-dragonheart/" ]; then
-    git clone --depth=1 https://github.com/cyberknight777/anykernel3 -b op7 anykernel3-dragonheart
+if [ ! -d "${KDIR}/anykernel3-nethunter/" ]; then
+    git clone --depth=1 https://github.com/cyberknight777/anykernel3 -b op7-nh anykernel3-nethunter
 fi
+
+if [[ "${MODULE}" = 1 ]]; then
+    if [ ! -d "${KDIR}"/modules ]; then
+        git clone --depth=1 https://github.com/cyberknight777/nethunter-modules "${KDIR}"/modules
+    fi
+fi
+
 
 if [ "${ci}" != 1 ]; then
     if [ -z "${kver}" ]; then
@@ -156,7 +166,10 @@ else
     export KBUILD_BUILD_USER=$BUILDER
     export VERSION=$version
     kver=$KBUILD_BUILD_VERSION
-    zipn=DragonHeart-op7-${VERSION}
+    zipn=NetHunter-op7-${VERSION}
+    if [[ "${MODULE}" = "1" ]]; then
+        modn="${zipn}-modules"
+    fi
 fi
 
 # A function to exit on SIGINT.
@@ -266,7 +279,11 @@ mod() {
     make "${MAKE[@]}" modules_prepare
     make -j"$PROCS" "${MAKE[@]}" modules INSTALL_MOD_PATH="${KDIR}"/out/modules
     make "${MAKE[@]}" modules_install INSTALL_MOD_PATH="${KDIR}"/out/modules
-    find "${KDIR}"/out/modules -type f -iname '*.ko' -exec cp {} "${KDIR}"/anykernel3-dragonheart/modules/system/lib/modules/ \;
+    find "${KDIR}"/out/modules -type f -iname '*.ko' -exec cp {} "${KDIR}"/modules/system/lib/modules/ \;
+    cd "${KDIR}"/modules || exit 1
+    zip -r9 "${modn}".zip . -x ".git*" -x "README.md" -x "LICENSE" -x "*.zip"
+    cd ../ || exit 1
+
     echo -e "\n\e[1;32m[✓] Built Modules! \e[0m"
 }
 
@@ -276,15 +293,15 @@ mkzip() {
         tg "*Building zip!*"
     fi
     echo -e "\n\e[1;93m[*] Building zip! \e[0m"
-    mkdir -p "${KDIR}"/anykernel3-dragonheart/dtbs
-    mv "${KDIR}"/out/arch/arm64/boot/dtbo.img "${KDIR}"/anykernel3-dragonheart
-    mv "${KDIR}"/out/arch/arm64/boot/dtb.img "${KDIR}"/anykernel3-dragonheart/dtbs/
+    mkdir -p "${KDIR}"/anykernel3-nethunter/dtbs
+    mv "${KDIR}"/out/arch/arm64/boot/dtbo.img "${KDIR}"/anykernel3-nethunter
+    mv "${KDIR}"/out/arch/arm64/boot/dtb.img "${KDIR}"/anykernel3-nethunter/dtbs/
     sed -i 's/ext4/erofs/g' "${KDIR}"/arch/arm64/boot/dts/qcom/sm8150.dtsi
     sed -i 's/,barrier=1,discard//g' "${KDIR}"/arch/arm64/boot/dts/qcom/sm8150.dtsi
     time make -j"$PROCS" "${MAKE[@]}" dtb.img
-    mv "${KDIR}"/out/arch/arm64/boot/dtb.img "${KDIR}"/anykernel3-dragonheart/dtbs/dtb_erofs.img
-    mv "${KDIR}"/out/arch/arm64/boot/Image "${KDIR}"/anykernel3-dragonheart
-    cd "${KDIR}"/anykernel3-dragonheart || exit 1
+    mv "${KDIR}"/out/arch/arm64/boot/dtb.img "${KDIR}"/anykernel3-nethunter/dtbs/dtb_erofs.img
+    mv "${KDIR}"/out/arch/arm64/boot/Image "${KDIR}"/anykernel3-nethunter
+    cd "${KDIR}"/anykernel3-nethunter || exit 1
     zip -r9 "$zipn".zip . -x ".git*" -x "README.md" -x "LICENSE" -x "*.zip"
     echo -e "\n\e[1;32m[✓] Built zip! \e[0m"
     if [[ "${CI}" != "0" ]]; then
@@ -294,17 +311,18 @@ mkzip() {
 	git config credential.helper "store --file .pwd"
 	sha1=$(sha1sum ../"${zipn}".zip | cut -d ' ' -f1)
 	if [[ "${RELEASE}" != "1" ]]; then
-	    rm changelog_r.md
-	    wget "${link}/raw" -O changelog_r.md
-	    gh release create "${version}" -t "DragonHeart for $CODENAME [BLEEDING EDGE] - $version"
+	    rm changelog_nhr.md
+	    wget "${link}/raw" -O changelog_nhr.md
+	    gh release create "${version}" -t "NetHunter for $CODENAME [BLEEDING EDGE] - $version"
 	    gh release upload "${version}" ../"${zipn}.zip"
+            gh release upload "${version}" ../../modules/"${modn}".zip
 	    echo "
 {
   \"kernel\": {
-  \"name\": \"DragonHeart\",
+  \"name\": \"NetHunter\",
   \"version\": \"$version\",
   \"link\": \"https://github.com/cyberknight777/op7_json/releases/download/$version/$zipn.zip\",
-  \"changelog_url\": \"https://raw.githubusercontent.com/cyberknight777/op7_json/master/changelog_r.md\",
+  \"changelog_url\": \"https://raw.githubusercontent.com/cyberknight777/op7_json/master/changelog_nhr.md\",
   \"date\": \"$DATE\",
   \"sha1\": \"$sha1\"
   },
@@ -312,21 +330,22 @@ mkzip() {
     \"link\": \"https://t.me/knightschat\"
   }
 }
-" > DragonHeart-r.json
-	    git add DragonHeart-r.json changelog_r.md || exit 1
-	    git commit -s -m "DragonHeart: Update $CODENAME to $version release" -m "- This is a bleeding edge release."
+" > NetHunter-r.json
+	    git add NetHunter-r.json changelog_nhr.md || exit 1
+	    git commit -s -m "NetHunter: Update $CODENAME to $version release" -m "- This is a bleeding edge release."
 	else
-	    rm changelog.md
-	    wget "${link}"/raw -O changelog.md
-	    gh release create "${version}" -t "DragonHeart for $CODENAME [RELEASE] - $version"
+	    rm changelog_nhv.md
+	    wget "${link}"/raw -O changelog_nhv.md
+	    gh release create "${version}" -t "NetHunter for $CODENAME [RELEASE] - $version"
 	    gh release upload "${version}" ../"${zipn}.zip"
+            gh release upload "${version}" ../../modules/"${modn}".zip
 	    echo "
 {
   \"kernel\": {
-  \"name\": \"DragonHeart\",
+  \"name\": \"NetHunter\",
   \"version\": \"$version\",
   \"link\": \"https://github.com/cyberknight777/op7_json/releases/download/$version/$zipn.zip\",
-  \"changelog_url\": \"https://raw.githubusercontent.com/cyberknight777/op7_json/master/changelog.md\",
+  \"changelog_url\": \"https://raw.githubusercontent.com/cyberknight777/op7_json/master/changelog_nhr.md\",
   \"date\": \"$DATE\",
   \"sha1\": \"$sha1\"
   },
@@ -334,18 +353,22 @@ mkzip() {
     \"link\": \"https://t.me/knightschat\"
   }
 }
-" > DragonHeart-rc.json
-	    git add DragonHeart-rc.json changelog.md || exit 1
-	    git commit -s -m "DragonHeart: Update $CODENAME to $version release" -m "- This is a stable release."
+" > NetHunter-v.json
+	    git add NetHunter-v.json changelog_nhv.md || exit 1
+	    git commit -s -m "NetHunter: Update $CODENAME to $version release" -m "- This is a stable release."
 	fi
 	git push
 	cd ../ || exit 1
     fi
     if [[ "${TGI}" != "0" ]]; then
         tgs "${zipn}.zip" "*#${kver} ${KBUILD_COMPILER_STRING}*"
+        if [[ "${MODULE}" = "1" ]]; then
+            cd ../modules || exit 1
+            tgs "${modn}.zip" "*#${kver} ${KBUILD_COMPILER_STRING}*"
+	fi
 	tg "
-*OTA*: https://raw.githubusercontent.com/cyberknight777/op7\_json/master/DragonHeart-${re}.json
-*Changelog*: https://github.com/cyberknight777/op7\_json/blob/master/changelog\_${re}.md
+*OTA*: https://raw.githubusercontent.com/cyberknight777/op7\_json/master/NetHunter-${re}.json
+*Changelog*: https://github.com/cyberknight777/op7\_json/blob/master/changelog\_nh${re}.md
 "
     fi
 }
@@ -360,14 +383,14 @@ obj() {
 
 # A function to uprev localversion in defconfig.
 upr() {
-    echo -e "\n\e[1;93m[*] Bumping localversion to -DragonHeart-${1}! \e[0m"
-    "${KDIR}"/scripts/config --file "${KDIR}"/arch/arm64/configs/$CONFIG --set-str CONFIG_LOCALVERSION "-DragonHeart-${1}"
+    echo -e "\n\e[1;93m[*] Bumping localversion to -NetHunter-${1}! \e[0m"
+    "${KDIR}"/scripts/config --file "${KDIR}"/arch/arm64/configs/$CONFIG --set-str CONFIG_LOCALVERSION "-NetHunter-${1}"
     rgn
     if [ "${ci}" != 1 ]; then
         git add arch/arm64/configs/$CONFIG
-        git commit -S -s -m "dragonheart_defconfig: Bump to \`${1}\`"
+        git commit -S -s -m "kali_defconfig: Bump to \`${1}\`"
     fi
-    echo -e "\n\e[1;32m[✓] Bumped localversion to -DragonHeart-${1}! \e[0m"
+    echo -e "\n\e[1;32m[✓] Bumped localversion to -NetHunter-${1}! \e[0m"
 }
 
 # A function to showcase the options provided for args-based usage.
