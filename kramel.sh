@@ -13,7 +13,7 @@
 # Some Placeholders: [!] [*] [✓] [✗]
 
 # Default defconfig to use for builds.
-export CONFIG=dragonheart_defconfig
+export CONFIG=kali_defconfig
 
 # Default directory where kernel is located in.
 KDIR=$(pwd)
