@@ -15,8 +15,5 @@
 #ifndef __DRV_TYPES_LINUX_H__
 #define __DRV_TYPES_LINUX_H__
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
-#define dev_addr_set(netdev, ethdata) _rtw_memcpy(netdev, ethdata, ETH_ALEN) 
-#endif
 
 #endif
