@@ -66,6 +66,9 @@ export PROCS
 # Compiler to use for builds.
 export COMPILER=clang
 
+# Module building support. Set 1 to enable. | Set 0 to disable.
+export MODULE=1
+
 # Requirements
 if [ "${CI}" == 0 ]; then
 	if ! hash dialog make curl wget unzip find 2>/dev/null; then
@@ -121,6 +124,12 @@ if [ ! -d "${KDIR}/anykernel3-nethunter/" ]; then
 	git clone --depth=1 https://github.com/cyberknight777/anykernel3 -b op7-nh anykernel3-nethunter
 fi
 
+if [[ ${MODULE} == 1 ]]; then
+	if [ ! -d "${KDIR}"/modules ]; then
+		git clone --depth=1 https://github.com/cyberknight777/nethunter-modules "${KDIR}"/modules
+	fi
+fi
+
 if [ ! -f "${KDIR}/version" ]; then
 	echo -e "\n\e[1;31m[✗] version file not found!!! Read https://github.com/cyberknight777/YAKB#version-file for more information.\e[0m"
 	exit 1
@@ -133,6 +142,9 @@ export KBUILD_BUILD_HOST="builder"
 VERSION=$(grep ver= version | cut -d= -f2)
 kver="${KBUILD_BUILD_VERSION}"
 zipn=NetHunter-op7-"${VERSION}"
+if [[ ${MODULE} == "1" ]]; then
+	modn="${zipn}-modules"
+fi
 
 # A function to exit on SIGINT.
 exit_on_signal_SIGINT() {
@@ -241,7 +253,10 @@ mod() {
 	make "${MAKE[@]}" modules_prepare
 	make -j"$PROCS" "${MAKE[@]}" modules INSTALL_MOD_PATH="${KDIR}"/out/modules
 	make "${MAKE[@]}" modules_install INSTALL_MOD_PATH="${KDIR}"/out/modules
-	find "${KDIR}"/out/modules -type f -iname '*.ko' -exec cp {} "${KDIR}"/anykernel3-nethunter/modules/system/lib/modules/ \;
+	find "${KDIR}"/out/modules -type f -iname '*.ko' -exec cp {} "${KDIR}"/modules/system/lib/modules/ \;
+	cd "${KDIR}"/modules || exit 1
+	zip -r9 "${modn}".zip . -x ".git*" -x "README.md" -x "LICENSE" -x "*.zip"
+	cd ../ || exit 1
 	echo -e "\n\e[1;32m[✓] Built Modules! \e[0m"
 }
 
@@ -317,6 +332,10 @@ mkzip() {
 	fi
 	if [[ ${TGI} == "1" ]]; then
 		tgs "${zipn}.zip" "*#${kver} ${KBUILD_COMPILER_STRING}*"
+		if [[ ${MODULE} == "1" ]]; then
+			cd ../modules || exit 1
+			tgs "${modn}.zip" "*#${kver} ${KBUILD_COMPILER_STRING}*"
+		fi
 		tg "
 *Build*: https://github.com/cyberknight777/op7\_json/releases/download/$VERSION/$zipn.zip
 *Changelog*: https://github.com/cyberknight777/op7\_json/blob/master/changelog\_nh${re}.md
