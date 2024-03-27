@@ -125,7 +125,7 @@ static inline bool ieee80211_is_frag(struct ieee80211_hdr *hdr)
 	       hdr->seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG);
 }
 #endif
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4,4,267)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,267)
 #define is_signed_type(type)       (((type)(-1)) < (type)1)
 #define __type_half_max(type) ((type)1 << (8*sizeof(type) - 1 - is_signed_type(type)))
 #define type_max(T) ((T)((__type_half_max(T) - 1) + __type_half_max(T)))
